@@ -162,10 +162,67 @@ Server Only는 게임 관리자에 해당하는 **GameMode**가 포함되며 Ser
 Authority : 서버 <br>
 Remote : 클라이언트 
 
+추가적으로 **Travel**에 대해 알아보자. <br> 
+멀티플레이어에서의 이동(Travel) 그러니까 멀티플레이어에서의 이동 작동방식에 대한 것이다. <br>
+언리얼엔진에서의 이동 방식은 크게 2가지로 나눌 수 있는데, **매끄러운 방식인 Seamless과 매끄럽지 않은 방식인 Non-Seamless 방식**으로 나눌 수 있다. 이 둘의 차이점은 Seamless 방식은 블록이 없는 작업이 반면, Non-Seamless는 블록이 있는 호출이라는 점이다. <br> 
+Client가 Non-Seamless이동 실행시, 클라이언트는 서버에서 접속을 끊은 다음 같은 서버에 다시 접속하여, 새로 로드할 맵을 준비한다. <br>
+하지만, 언리얼 멀티플레이어 게임은 가급적으로 Seamless을 사용할 것으로 권하는데, 일반적으로 플레이어가 느끼기에 부드럽고, 재접속 프로세스 도중에 발생할 수 있는 문제를 피할 수 있기 때문이다. <br>
+Non-Seamless가 일어날 수 없는 상황은 셋 정도 밖에 없다. 
+1. 맵을 처음 로드할 때
+2. 서버에 클라이언트로 처음 접속할 때
+3. 멀티플레이어 게임을 끝나고 새 게임을 시작할 때
+
+Travel을 위해 쓰이는 함수는 크게 UEngine::Browse, UWorld::ServerTravel, APlayerController::ClientTravel의 3가지이며, 어떻게 사용할지 약간 헷갈릴 수 있으니 하나씩 알아보는 것이 좋다. 
+  
+  - UEngine::Browse
+    + 새 맵 로드시 **Hard Reset** 같은 것이다.
+    + **항상 Non-Seamless 이동이 된다.**
+    + 목적 맵에 이동하기전에 **Server가 현재 Client 접속을 끊는다**
+    + Client는 **현재 서버에 접속이 끊긴다.**
+    + Dedicated Server는 **다른 서버로 이동할 수 없으며**, 맵은 **반드시 Local**이어야 한다. 즉, URL이 될 수없다. 
+  
+  - UWorld::ServerTravel
+    + Server 전용
+    + Server를 새 월드/레벨로 점프시킨다.
+    + 접속된 모든 Client도 따라간다
+    + 멀티플레이어 게임에서는 맵 사이 이동할 때 쓰는 방식으로, 서버에서 이 함수 호출을 담당한다.
+    + 서버는 접속된 모든 Client Player에 대해 APlayerController::ClientTravel를 호출해준다.
+      
+  - APlayerController::ClientTravel
+    + Client에서 호출되면, 새 서버로 이동
+    + 서버에서 호출되면, 특정 클라이언트더러 새 맵으로 이동하라 알려준다. (현재 서버에 접속은 유지)
+
+6. 매끄러운 이동(Seamless Travel) 활성화 
+
+Seamless Travel을 활성화 시킬려면, 트랜지션 맵을 구성해야 되고, UGameMapsSettings::TransitionMap 프로퍼티를 통해 이루어진다. 기본적으로 프로퍼티는 비어 있는데, 게임에서 이 프로퍼티가 비어있으면 트랜지션 맵에 기본 맵이 생성된다. <br>
+트랜지션의 맵의 존재 이유는, 항상 (맵이 저장된) 월드가 로드되어 있어서, 새 맵을 로드하기 전에 이전 맵을 해제시킬 수 없기 때문이다. 그리고 맵이 매우 클 수 있어, 이전 맵과 새 맵을 동시에 메모리에 두는것이 좋지 않아, 트랜지션 맵이 생긴 것이다. <br>  
+현재 맵에서 트랜지션 맵으로 이동한 다음 거기서, 최종 맵으로 이동하면 된다. 트랜지션 맵은 매우 작아, 현재 맵을 최종 맵으로 대체시키는 와중에 그다지 큰 부하가 걸리지 않는다. <br>
+트랜지션 맵 구성이 완료되고나서, AGameModeBase::bUseSeamlessTravel을 true로 설정하면 Seamless Travel이 작동할 것이다. 
+
+  - Seamless Travel Flow
+    + Seamless Travel 실행시의 일반적은 흐름은 다음과 같다.
+    + 1. 트랜지션 레벨에 지속되는 엑터를 마킹
+    + 2. 트래지션 레벨로 이동
+    + 3. 최종 레벨로 지속되는 엑터를 마킹
+    + 4. 최종 레벨로 이동
+  
+  - Persisting Actors across Seamless Travel
+    + Seamless Travel을 사용시 현재 레벨에서 새 레벨로 (지속) 액터를 가지고 가는 것이 가능하다. 예를 들어, 인벤토리 아이템, 플레이어와 같은 특정 엑터에 좋다.
+    + 기본적으로 자동 지속되는 엑터는 다음과 같다.
+    + GameMode 액터 (서버만), AGameModeBase::GetSeamlessTravelActorList를 통해 추가된 엑터
+    + 유효한 PlayerState가 있는 모든 Controller (서버만)
+    + 모든 PlayerController (서버만)
+    + 모든 로컬 PlyerController (서버/클라이언트), 로컬 PlyerController에서 호출된 APlayerController::GetSeamlessTravelActorList를 통해 추가된 엑터
+
+p.s 트랜지션 맵이란?
+ 멀티플레이어 환경에서 맵(레벨)을 변경할 때, 기존 맵에서 목적지 맵으로 매끄럽게(Seamless) 이동하기 위해 거쳐가는 중간 로딩용 맵
+
+[UE5 Travelling in Multiplayer](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/travelling-in-multiplayer-in-unreal-engine)
+
 --------------------------------------------------------------------------------
 ### UE5 Artificial Intelligence
 
-6. UE5 AI
+7. UE5 AI
 
 게임에서 중요한 요소중 하나가 상호작용이라고 생각하는데, 게임속에서 몬스터 어그로를 끌거나, 어려운 패턴을 가진 보스를 잡거나 혹은 NPC가 선택을 해서 세계선이 바뀌거나 등... 게임속의 룰/오브젝트와 상호작용하여 목표를 달성하는게 게임이고, 액터가 마치 지능이 있는 것처럼 행동하도록 설계하는 기능을 언리얼 엔진의 AI라고 한다. 또한, 인공지능은 여러가지 역할을 맡는데 아군 역할을 할 수도, 적군 역할을 할 수 있다. 다만 실제로 플레이어가 하는것 처럼 **똑똑한** 인공지능이 되어야하지, 멍청하면 게임성이 떨어진다. 
   
@@ -176,7 +233,7 @@ Remote : 클라이언트
   + 참고로, AI는 Build.cs에서 **AIModule**키워드를 추가해줘야하고, 보통은 AIController는 C++클래스로, Behavior Tree와 Black Board는 에디터에서 생성하는 편이다. 
   + [언리얼 인공지능](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/artificial-intelligence-in-unreal-engine)
 
-7. Unreal Behavior Tree
+8. Unreal Behavior Tree
 
 언리얼 AI를 하기전에, Behavior Tree을 대해 알아야하는데, 이는 AI가 어떤 행동을 하는가?를 설정하기위해서 Behavior Tree라는걸 설정해줘야한다.   
   
@@ -195,4 +252,10 @@ Remote : 클라이언트
   + [언리얼 행동트리](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/behavior-tree-in-unreal-engine---user-guide)
   + 추가로 주의해야할 점이 있는데, 언리얼4에서는 블랙보드랑 행동 트리를 직접 다 지정해줘야 했지만, 언리얼5는 **행동 트리**만 설정하면 되기에 버전을 꼭 확인하는 것이 좋다.  
       
-8. Unreal Navigation System
+9. Unreal Navigation System
+
+  - Unreal Engine Navigation System은 인공지능 에이전트가 경로 찾기를 사용하여 Level을 이동할 수 있게해주는 기능
+  - Level내 콜리전 지오메트리에서 메시를 생성하여 메시를 타일로 분할하고 그 타일이 폴리곤으로 분할되어, 에이젠트가 목적지로 이동할 때 사용하는 그래프를 형성 및 각 폴리곤에는 에이전트가 전체 비용이 **가장 낮은 최적의 경로**를 판정하는데 사용할 비용을 할당한다.
+  - 다양한 컴포넌트와 세팅이 포함되고, 폴리곤에 할당되는 비용 등 내비게이션 메시의 생성 방식을 수정 가능함, 이는 에이전트가 레벨 내에서 이동하는 방식에 영향을 미치고 플랫폼이나 다리 등 연속되지 않는 내비게이션 메시 영역을 연결할 수도 있다.
+  - 또한, 3가지 생성 모드(Generation Modes) 가 포함되는데, **스태틱(Static) , 다이내믹(Dynamic) , 다이내믹 모디파이어만(Dynamic Modifiers Only)** 이다. 생성 모드는 내비게이션 메시가 프로젝트에서 생성되는 방식을 제어하고 필요할 때 이용할 수 있는 다양한 옵션을 제공해준다. 상호 속도 장애물(Reciprocal Velocity Obstacles, RVO) 과 크라우드 우회 매니저(Detour Crowd Manager) 두 가지의 에이전트 **회피 메서드**를 제공해주고, 회피 메서드는 에이전트가 게임플레이 중에 다이내믹한 장애물과 다른 에이전트 주변으로 지나다닐 수 있게 해준다.
+    
