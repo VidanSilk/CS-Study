@@ -258,4 +258,45 @@ p.s 트랜지션 맵이란?
   - Level내 콜리전 지오메트리에서 메시를 생성하여 메시를 타일로 분할하고 그 타일이 폴리곤으로 분할되어, 에이젠트가 목적지로 이동할 때 사용하는 그래프를 형성 및 각 폴리곤에는 에이전트가 전체 비용이 **가장 낮은 최적의 경로**를 판정하는데 사용할 비용을 할당한다.
   - 다양한 컴포넌트와 세팅이 포함되고, 폴리곤에 할당되는 비용 등 내비게이션 메시의 생성 방식을 수정 가능함, 이는 에이전트가 레벨 내에서 이동하는 방식에 영향을 미치고 플랫폼이나 다리 등 연속되지 않는 내비게이션 메시 영역을 연결할 수도 있다.
   - 또한, 3가지 생성 모드(Generation Modes) 가 포함되는데, **스태틱(Static) , 다이내믹(Dynamic) , 다이내믹 모디파이어만(Dynamic Modifiers Only)** 이다. 생성 모드는 내비게이션 메시가 프로젝트에서 생성되는 방식을 제어하고 필요할 때 이용할 수 있는 다양한 옵션을 제공해준다. 상호 속도 장애물(Reciprocal Velocity Obstacles, RVO) 과 크라우드 우회 매니저(Detour Crowd Manager) 두 가지의 에이전트 **회피 메서드**를 제공해주고, 회피 메서드는 에이전트가 게임플레이 중에 다이내믹한 장애물과 다른 에이전트 주변으로 지나다닐 수 있게 해준다.
+
+------------------------------------------------------------------------------------------------
+### UE5 PCG(Procedural Content Generation)
+
+10. PCG
+
+PCG란 언리얼 엔진에서 자체 프로시저럴 콘텐츠와 툴을 제작할 수 있는 툴세트인데, 건물이나 생물군 생성과 같은 에셋 유틸리티부터 전체 월드에 이르기까지 복잡성에 관계 없이 빠른 반복작업 툴과 콘텐츠를 빌드할 수 있도록 지원을 해준다. 
+
+  - Point → PCG 그래프에 의해 생성되는 3D 스페이스 내 위치로, 종종 메시를 스폰하는데 사용된다. 트랜스폼, 바운드, 색, 밀도, 경사도, 시드에 대한 정보가 포함되며, 포인트에 사용자 정의 어트리뷰트를 할당할 수 있다.
+  - Point Density → 다양한 그래프 노드에서 사용되는 값으로, 디버그 뷰에서 각 포인트의 그레이디언트로 표시되고, 해당 위치에 포인타가 존재할 확률을 나타내준다. Density가 0이면 검정, 1이면 흰색이다.
+
+참고로, PCG를 사용하기위해서는 에디터에서 프로시저럴 콘텐츠 제너레이션 프레임워크(Procedural Content Generation Framework) 플러그인을 활성화 해줘야한다. <br>
+[Unreal Engine PCG](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/procedural-content-generation-overview#important-concepts-and-terms)
+
+  + PCG Component
+    - PCG Component를 통해 Level를 샘플링할 수 있는데, 이 컴포넌트는 프로시저럴 노드 그래프의 인스턴스를 저장하고 에디터와 런타임 모두에서 Procedural Content의 생성을 관리한다.
+    - 액터에 컴포넌트로 추가되거나, Procedural Content를 설정하는데 좋은 PCG 볼륨의 일부로 사용된다.
     
+  + World Partition
+    - 그리드를 사용하여 런타임 시 월드을 다이나믹하게 로드되고, 언로드 될 수 있는 셀로 분리 해주는 기능이지, 멀리 있는 산과 나무, 절벽 등 멀리 떨어져있고, 상호작용이 없는 액터를 계속 보이게 해야하는 경우도 있다. 
+    - PCG Asset를 월드 파티션의 데이터 레이어 혹은 HOLD 레이어에 할당하면 PCG그래프는 액터를 생성하여, 동일한 데이터 레이어, 동일한 HLOD 레이어를 할당해준다.
+  
+HLOD는 Hierarchical Level of Detail로, 커스텀 HLOD 레이어를 사용하여 대량의 스태틱 메시 액터를 구성하고, 단일 프록시 메시와 머티리얼을 생성한다. 이 기법을 사용하면 언로드된 월드 파티션 그리드 셀을 시각화하고, 프레임 드로 콜 수를 줄이고, 퍼포먼스를 향상 시킬 수 있다. 주로 대규모 오픈월드에서 사용할 때 유용하다.  
+
+------------------------------------------------------------------------------------------------------------------
+### UE5 World Partition
+
+11. World Partition
+
+기존에 큰 맵을 만들려면 프로그래머가 직접 맵을 서브 레벨로 나누고나서, 레벨 스트리밍 시스템을 통해 플레이어가 랜드스케이프를 이동할 때 로딩, 언로딩을 했어야 했는데, 이러한 경우에 다수의 사용자가 파일을 공유할 때 종종 문제가 생겼고, 전체 월드의 컨텍스트를 파악하기가 어려웠다. 이에 대한 해결책으로 World Partition이 등장하였다. <br>
+World Partition은 대규모 월드를 관리하기에 완벽한 솔루션인 자동 데이터 관리 및 거리 기반 레벨 스트리밍 시스템으로, 그리드 셀로 나눠진 단일 퍼시스턴트 레벨에 월드를 저장함으로써 대규모 레벨을 서브 레벨로 나눠야 했던 기존 방식과 달리, 스트리밍 소스로부터 떨어진 거리에 따라 그리드 셀을 로드하거나 언로드하는 자동 스트리밍 시스템이다.
+
+월드를 단일 퍼시스턴트 레벨 파일에 저장하고, 환경설정 가능한 런타임 그리드를 사용해 공간을 스트리밍 가능한 그리들 셀로 다시 나눔으로써 작동을한다. 셀은 Player 같은 스트리밍 소스의 조냊로 인해 로딩, 언로딩이 된다. 엔진은 특정 시간에 플레이어가 보고 상호작용하는 부분만 로드해준다.
+
+[Unreal Engine World Patition](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/world-partition-in-unreal-engine)
+[Unreal Engine World Partition DataLayers](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/world-partition---data-layers-in-unreal-engine)
+[Unreal Engine Level Instancing](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/level-instancing-in-unreal-engine)
+[Unreal Engine World Partition HOLD](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/world-partition---hierarchical-level-of-detail-in-unreal-engine)
+[Unreal Engine Using PCG with World Patition](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/using-pcg-with-world-partition-in-unreal-engine)
+
+-----------------------------------------------------------------------------------------------------------------------------
+### UE5 Chaos Physics 
