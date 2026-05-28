@@ -53,7 +53,7 @@ C++ 클래스와 블루프린트 시스템간의 상화작용에 영향을 끼�
 이 과정이 끝나면 UHT의 작업은 끝나게 되고, 일반 C++컴파일러가 UHT이 생성한 코드를 포함해서 C++컴파일을 수행 
 
    - **UHT(Unreal Header Tool)**
-     + C++ 코들을 컴파일 하기전에 모든 헤더파일들을 순회하면서, 언리얼 리플렉션 시스템에 필요한 정보을 읽어들 후, .generate.h 파일과 gen.cpp파일을 Intermediate폴더에 생성하는 소프트웨어
+     + C++ 코드를 컴파일 하기전에 모든 헤더파일들을 순회하면서, 언리얼 리플렉션 시스템에 필요한 정보을 읽어들 후, .generate.h 파일과 gen.cpp파일을 Intermediate폴더에 생성하는 소프트웨어
      + 자체적으로 리플렉션 시스템을 구현하기 위해 UCLASS(),UPROPERTY(),UFUNCTION() 등의 매크로를 사용하고, 이 매크로를 해석해서 C++ 컴파일러가 알아들을 수 있게 코드를 생성(.generate.h, .gen.cpp)해주는 작업. 
        
    - **UBT(Unreal Build Tool)**
@@ -137,6 +137,7 @@ C++ 클래스와 블루프린트 시스템간의 상화작용에 영향을 끼�
     + 간단하게 이야기 하자면, 각각의 컴퓨터가 서버이면서 동시에 클라이언트까지 동작하는 방식이다. 
 
 [언리얼 네트워킹 개요](https://dev.epicgames.com/documentation/ko-kr/unreal-engine/networking-overview-for-unreal-engine)
+[Network Conpendium 정리 블로그](https://unrealengine.tistory.com/44)
 
 <img src="https://github.com/VidanSilk/CS-Study/blob/main/CS_KeyWord/_img/Ue5NetWorkImg.png"  width="400" height="500"></img>
 
@@ -300,3 +301,8 @@ World Partition은 대규모 월드를 관리하기에 완벽한 솔루션인 �
 
 -----------------------------------------------------------------------------------------------------------------------------
 ### UE5 Chaos Physics 
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------
+
